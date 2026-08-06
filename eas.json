@@ -7,7 +7,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_CONVEX_URL": "https://colorless-shepherd-537.convex.cloud"
+        "EXPO_PUBLIC_CONVEX_URL": "https://abundant-crocodile-283.convex.cloud/"
       },
       "ios": {
         "simulator": true
@@ -19,7 +19,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_CONVEX_URL": "https://grateful-starfish-783.convex.cloud"
+        "EXPO_PUBLIC_CONVEX_URL": "https://blessed-oriole-820.convex.cloud"
       }
     },
     "production": {

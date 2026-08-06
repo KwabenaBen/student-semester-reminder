@@ -1,38 +1,47 @@
-import { authTables } from '@convex-dev/auth/server';
-import { defineSchema, defineTable } from 'convex/server';
-import { v } from 'convex/values';
+import { authTables } from "@convex-dev/auth/server";
+import { defineSchema, defineTable } from "convex/server";
+import { v } from "convex/values";
 
 export const priorityValidator = v.union(
-  v.literal('CRITICAL'),
-  v.literal('IMPORTANT'),
-  v.literal('FLEXIBLE'),
+  v.literal("CRITICAL"),
+  v.literal("IMPORTANT"),
+  v.literal("FLEXIBLE"),
 );
-export const activityStatusValidator = v.union(v.literal('PENDING'), v.literal('COMPLETED'));
+export const activityStatusValidator = v.union(
+  v.literal("PENDING"),
+  v.literal("COMPLETED"),
+);
 // Shared by `reminders` and `alerts` — both tables reference "which owning table does
 // entityId belong to" and use the same three values (matching the actual table names,
 // not a separate snake_case vocabulary) so there's one entity-kind vocabulary in this
 // schema, not two slightly-differently-spelled ones for two similar-purpose tables.
 export const entityType = v.union(
-  v.literal('courseActivities'),
-  v.literal('semesterActivities'),
-  v.literal('personalReminders'),
+  v.literal("courseActivities"),
+  v.literal("semesterActivities"),
+  v.literal("personalReminders"),
 );
 export const alertKindValidator = v.union(
-  v.literal('REMINDER_FIRED'),
-  v.literal('NEW_EVENT'),
-  v.literal('OVERDUE'),
+  v.literal("REMINDER_FIRED"),
+  v.literal("NEW_EVENT"),
+  v.literal("OVERDUE"),
 );
 
 // Shared by academicClasses (defines it) and academicStructure.ts / studentProfiles.ts
 // (query args that must accept exactly the same values).
-export const sessionValidator = v.union(v.literal('REGULAR'), v.literal('WEEKEND'));
+export const sessionValidator = v.union(
+  v.literal("REGULAR"),
+  v.literal("WEEKEND"),
+);
 
 // Every user is exactly one of these — there's no third role in this MVP (see
 // AGENTS.md's Admin account section). Students get "student" via the register flow's
 // own profile() callback (convex/auth.ts); admins only ever get "admin" via
 // convex/admins.ts's createAdminAccount, an internalAction with no public
 // equivalent — there is no client-facing "become an admin" path anywhere in this app.
-export const userRoleValidator = v.union(v.literal('student'), v.literal('admin'));
+export const userRoleValidator = v.union(
+  v.literal("student"),
+  v.literal("admin"),
+);
 
 export default defineSchema({
   ...authTables,
@@ -50,10 +59,10 @@ export default defineSchema({
     // equivalent table. Optional purely because students never have one;
     // createAdminAccount always sets it for the admin it creates, never leaves it
     // unset for one.
-    institutionId: v.optional(v.id('institutions')),
+    institutionId: v.optional(v.id("institutions")),
   })
-    .index('email', ['email'])
-    .index('phone', ['phone']),
+    .index("email", ["email"])
+    .index("phone", ["phone"]),
 
   // Admin-published (the (admin) route group's Publish tab, once built — see
   // AGENTS.md's Admin account section). Read-only queries only, as of this pass.
@@ -62,7 +71,7 @@ export default defineSchema({
     startDate: v.number(),
     endDate: v.number(),
     isActive: v.boolean(),
-  }).index('by_isActive', ['isActive']),
+  }).index("by_isActive", ["isActive"]),
 
   // --- Institutional hierarchy. Admin-published, read-only from this app. ---
   // Institution -> Faculty -> Department -> Program -> academicClass (Level+Session)
@@ -78,86 +87,106 @@ export default defineSchema({
   }),
 
   faculties: defineTable({
-    institutionId: v.id('institutions'),
+    institutionId: v.id("institutions"),
     name: v.string(),
-  }).index('by_institutionId', ['institutionId']),
+  }).index("by_institutionId", ["institutionId"]),
 
   departments: defineTable({
-    facultyId: v.id('faculties'),
+    facultyId: v.id("faculties"),
     name: v.string(),
-  }).index('by_facultyId', ['facultyId']),
+  }).index("by_facultyId", ["facultyId"]),
 
   programs: defineTable({
-    departmentId: v.id('departments'),
+    departmentId: v.id("departments"),
     name: v.string(),
-  }).index('by_departmentId', ['departmentId']),
+  }).index("by_departmentId", ["departmentId"]),
 
   // A specific Program+Level+Session combination — what a student actually belongs to
   // and what a course is scheduled against. The compound index both enforces the
   // natural uniqueness of that triple and is the reverse lookup used to resolve the
   // Profile Setup picker chain (Program -> Level -> Session -> this row's _id).
   academicClasses: defineTable({
-    programId: v.id('programs'),
+    programId: v.id("programs"),
     level: v.number(),
     session: sessionValidator,
-  }).index('by_program_level_session', ['programId', 'level', 'session']),
+  }).index("by_program_level_session", ["programId", "level", "session"]),
 
   // Optional subdivision of an academicClass (A-E). A class with none simply has zero
   // rows here — see listDivisionsByClass in academicStructure.ts.
   divisions: defineTable({
-    academicClassId: v.id('academicClasses'),
+    academicClassId: v.id("academicClasses"),
     label: v.string(),
-  }).index('by_academicClassId', ['academicClassId']),
+  }).index("by_academicClassId", ["academicClassId"]),
 
   // Admin-published (the (admin) route group's Courses tab, once built). Read-only
   // queries only, as of this pass.
   courses: defineTable({
-    semesterId: v.id('semesters'),
-    academicClassId: v.id('academicClasses'),
+    semesterId: v.id("semesters"),
+    academicClassId: v.id("academicClasses"),
     courseCode: v.string(),
     courseTitle: v.string(),
     colourTag: v.string(),
-  }).index('by_semesterId_and_academicClassId', ['semesterId', 'academicClassId']),
+  }).index("by_semesterId_and_academicClassId", [
+    "semesterId",
+    "academicClassId",
+  ]),
 
   // Admin-published, read-only queries only as of this pass (same as courses above).
   // Schedule (day/time/venue) varies by division; course activities below don't —
   // that's why schedule lives here rather than on courses or courseActivities.
+  // courseSections: defineTable({
+  //   courseId: v.id('courses'),
+  //   divisionId: v.optional(v.id('divisions')),
+  //   scheduleDays: v.array(v.string()),
+  //   scheduleTime: v.string(),
+  //   venue: v.optional(v.string()),
+  // }).index('by_courseId', ['courseId']),
+
   courseSections: defineTable({
-    courseId: v.id('courses'),
-    divisionId: v.optional(v.id('divisions')),
+    courseId: v.id("courses"),
+    divisionId: v.optional(v.id("divisions")),
+    lecturer: v.string(),
     scheduleDays: v.array(v.string()),
     scheduleTime: v.string(),
     venue: v.optional(v.string()),
-  }).index('by_courseId', ['courseId']),
+  }).index("by_courseId", ["courseId"]),
 
   // Owned by this app. Assignments, quizzes, projects, and exams all live in one entity.
   courseActivities: defineTable({
-    studentId: v.id('users'),
-    courseId: v.id('courses'),
+    studentId: v.id("users"),
+    courseId: v.id("courses"),
     title: v.string(),
     activityType: v.union(
-      v.literal('ASSIGNMENT'),
-      v.literal('QUIZ'),
-      v.literal('PROJECT'),
-      v.literal('EXAM'),
+      v.literal("ASSIGNMENT"),
+      v.literal("QUIZ"),
+      v.literal("PROJECT"),
+      v.literal("EXAM"),
     ),
     dueDate: v.number(),
     priority: priorityValidator,
     status: activityStatusValidator,
     notes: v.optional(v.string()),
   })
-    .index('by_studentId', ['studentId'])
-    .index('by_courseId', ['courseId']),
+    .index("by_studentId", ["studentId"])
+    .index("by_courseId", ["courseId"]),
 
   // Admin-published institutional events (registration, exam periods, campus events).
   // Always CRITICAL priority and non-dismissible. Read-only from this app. Institution-
   // wide, not scoped to an academicClass — confirmed intentional.
+  // semesterActivities: defineTable({
+  //   semesterId: v.id("semesters"),
+  //   title: v.string(),
+  //   description: v.optional(v.string()),
+  //   date: v.number(),
+  // }).index("by_semesterId", ["semesterId"]),
+
   semesterActivities: defineTable({
-    semesterId: v.id('semesters'),
-    title: v.string(),
+    date: v.float64(),
     description: v.optional(v.string()),
-    date: v.number(),
-  }).index('by_semesterId', ['semesterId']),
+    semesterId: v.id("semesters"),
+    session: v.optional(v.union(v.literal("REGULAR"), v.literal("WEEKEND"))),
+    title: v.string(),
+  }).index("by_semesterId", ["semesterId"]),
 
   // Owned by this app — the student's primary creative surface. This is a REMINDER
   // platform, not a task manager: students never create courseActivities (admin owns
@@ -172,11 +201,11 @@ export default defineSchema({
   // for this MVP) — kept off the schema entirely rather than stubbed, so adding it later
   // is a plain additive migration, not a rename.
   personalReminders: defineTable({
-    userId: v.id('users'),
-    semesterId: v.id('semesters'),
+    userId: v.id("users"),
+    semesterId: v.id("semesters"),
     title: v.string(),
     description: v.optional(v.string()),
-    courseId: v.optional(v.id('courses')),
+    courseId: v.optional(v.id("courses")),
     dueDate: v.number(),
     startTime: v.number(),
     // If present, this is a time-range reminder (e.g. a study block); if absent, it's a
@@ -186,20 +215,20 @@ export default defineSchema({
     endTime: v.optional(v.number()),
     priority: priorityValidator,
     isCompleted: v.boolean(),
-  }).index('by_userId_and_semesterId', ['userId', 'semesterId']),
+  }).index("by_userId_and_semesterId", ["userId", "semesterId"]),
 
   // A scheduled local-notification job, tied to any of the entities above via
   // entityId/entityType. Scheduling itself happens on-device via expo-notifications;
   // this table just records what was scheduled so it can be looked up/cancelled.
   reminders: defineTable({
-    studentId: v.id('users'),
+    studentId: v.id("users"),
     entityId: v.string(),
     entityType,
     scheduledFor: v.number(),
     notificationId: v.optional(v.string()),
   })
-    .index('by_studentId', ['studentId'])
-    .index('by_entityId', ['entityId']),
+    .index("by_studentId", ["studentId"])
+    .index("by_entityId", ["entityId"]),
 
   // Owned by this app. One row per student, created during onboarding — its absence
   // for the signed-in user IS the "needs profile setup" gate state, see
@@ -209,12 +238,12 @@ export default defineSchema({
   // 3-hop join through academicClasses -> programs -> departments on every call. Keep
   // this redundancy — don't "clean it up" without re-introducing that cost.
   studentProfiles: defineTable({
-    userId: v.id('users'),
-    facultyId: v.id('faculties'),
-    departmentId: v.id('departments'),
-    programId: v.id('programs'),
-    academicClassId: v.id('academicClasses'),
-    divisionId: v.optional(v.id('divisions')),
+    userId: v.id("users"),
+    facultyId: v.id("faculties"),
+    departmentId: v.id("departments"),
+    programId: v.id("programs"),
+    academicClassId: v.id("academicClasses"),
+    divisionId: v.optional(v.id("divisions")),
     institutionalEmail: v.string(),
     indexNumber: v.string(),
     phoneNumber: v.string(),
@@ -224,7 +253,7 @@ export default defineSchema({
     // student's profile is created doesn't retroactively alert on the entire existing
     // catalogue of institutional events.
     lastSeenAlertsAt: v.optional(v.number()),
-  }).index('by_userId', ['userId']),
+  }).index("by_userId", ["userId"]),
 
   // Owned by this app. One row per (student, priority) — how far ahead of a due date
   // to fire local reminders for that priority tier. Settings' reminder-timing rows read
@@ -232,20 +261,20 @@ export default defineSchema({
   // default," not "no reminders" — see DEFAULT_INTERVALS_MINUTES in
   // lib/reminderIntervals.ts.
   reminderPreferences: defineTable({
-    studentId: v.id('users'),
+    studentId: v.id("users"),
     priority: priorityValidator,
     intervals: v.array(v.number()),
-  }).index('by_studentId_and_priority', ['studentId', 'priority']),
+  }).index("by_studentId_and_priority", ["studentId", "priority"]),
 
   // Owned by this app. One row per student for the Settings screen's device-level
   // toggles (push/sound/calendar sync) — distinct from reminderPreferences above, which
   // is about per-priority timing, not whether notifications fire at all.
   notificationPreferences: defineTable({
-    studentId: v.id('users'),
+    studentId: v.id("users"),
     pushEnabled: v.boolean(),
     soundEnabled: v.boolean(),
     calendarSyncEnabled: v.boolean(),
-  }).index('by_studentId', ['studentId']),
+  }).index("by_studentId", ["studentId"]),
 
   // Owned by this app — the Alerts tab's feed. A client-derived log, not real OS push
   // notifications (see AGENTS.md's Alerts feed section): entries are written by
@@ -264,7 +293,7 @@ export default defineSchema({
   // REMINDER_FIRED/OVERDUE alerts have one (it colours ActivityCard-style icon wells
   // the same way ActivityCard/PriorityBadge do); NEW_EVENT has no priority concept.
   alerts: defineTable({
-    userId: v.id('users'),
+    userId: v.id("users"),
     entityType,
     entityId: v.string(),
     kind: alertKindValidator,
@@ -274,8 +303,8 @@ export default defineSchema({
     createdAt: v.number(),
     isRead: v.boolean(),
   })
-    .index('by_userId', ['userId'])
-    .index('by_userId_entityId_kind', ['userId', 'entityId', 'kind']),
+    .index("by_userId", ["userId"])
+    .index("by_userId_entityId_kind", ["userId", "entityId", "kind"]),
 
   // Owned by this app — one row per (student, device). A student logged in on two
   // devices gets two rows, not one overwritten row; convex/pushTokens.ts upserts by the
@@ -285,11 +314,11 @@ export default defineSchema({
   // why "a client only ever sees its own data" isn't the same guarantee as "the server
   // never hands another user's tokens to anyone").
   pushTokens: defineTable({
-    userId: v.id('users'),
+    userId: v.id("users"),
     token: v.string(),
-    platform: v.union(v.literal('ios'), v.literal('android')),
+    platform: v.union(v.literal("ios"), v.literal("android")),
     updatedAt: v.number(),
   })
-    .index('by_userId', ['userId'])
-    .index('by_userId_and_token', ['userId', 'token']),
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_token", ["userId", "token"]),
 });
